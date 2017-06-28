@@ -147,6 +147,8 @@ class GoogleAssistant extends events.EventEmitter {
     }
 
     else if(response.hasError()) { 
+      let error = response.getError();
+      console.log(error.toString());
       this.emit('error', response.getError());
     }
   }

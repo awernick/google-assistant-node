@@ -16,6 +16,10 @@ authClient.setCredentials({
   refresh_token: env.GOOGLE_REFRESH_TOKEN
 })
 
+authClient.refreshAccessToken(function(err: Error, tokens: any) {
+  if(err) { throw err }
+})
+
 console.log(env.GOOGLE_CLIENT_ID);
 console.log(env.GOOGLE_CLIENT_SECRET);
 console.log(env.GOOGLE_ACCESS_TOKEN);
@@ -26,9 +30,21 @@ let createSimpleAudioStream = function() {
   return fs.createReadStream('./simple.wav');
 }
 
+let createFirstStepAudioStream = function() {
+  return fs.createReadStream('./multi.1.wav');
+}
+
+let createSecondStepAudioStream = function() {
+  return fs.createReadStream('./multi.2.wav');
+}
+
 module.exports = {
   authClient: authClient,
   audioStreams: {
-    createSimple: createSimpleAudioStream
+    createSimple: createSimpleAudioStream,
+    multistep: {
+      createFirstStream: createFirstStepAudioStream,
+      createSecondStream: createSecondStepAudioStream
+    }
   }
 }
