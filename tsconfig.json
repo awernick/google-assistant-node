@@ -6,7 +6,7 @@
     "alwaysStrict": true,
     "outDir": "./",
     "sourceMap": true,
-    "allowJs": true
+    "declaration": true
   },
   "include": [
     "ts/**/*"
