@@ -7,6 +7,3 @@ node_modules
 /build
 /lib
 /test
-**/*.js
-**/*.js.map
-
