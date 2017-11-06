@@ -1,7 +1,9 @@
 # Google Assistant SDK for Node
-
 This wrapper allows you to use the Google Assistant api in any Node application.
 It handles events, audio buffering, and client connection automatically.
+
+This module uses the GRPC implementation of the Google Assistant SDK.
+More info can be found [here](https://developers.google.com/assistant/sdk/reference/rpc/google.assistant.embedded.v1alpha1).
 
 ## Installation
 ```sh
@@ -93,3 +95,17 @@ assistant.authenticate(authClient);
 assistant.converse();
 ```
 
+### Constants
+#### Encoding
+- LINEAR16: Uncompressed 16-bit signed little-endian samples.
+- FLAC: Free Lossless Audio Codec. Input audio only.
+- MP3: MP3 Audio Encoding. Output audio only.
+- OPUS_IN_OGG: Opus-encoded audio wrapped in an ogg container. Output audio only.
+
+#### MicMode
+- CLOSE_MICROPHONE: The service is not expecting a follow-on question from the user. 
+- DIALOG_FOLLOW_ON: The service is expecting a follow-on question from the user. 
+
+## Contributing
+Please feel free to make pull requests if you want to include a feature or
+if you fix an issue previously reported in the tracker.
