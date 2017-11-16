@@ -65,7 +65,7 @@ assistant.once('ready', (wstream) => {
 // Current conversation is over. 
 // NOTE: 'end' will be called even if there is a 'follow-on' event.
 assistant.once('end', () => {
-}
+});
 
 // Assistant is expecting a follow-on response from user.
 assistant.on('follow-on', () => {
@@ -74,7 +74,7 @@ assistant.on('follow-on', () => {
   // if desired (or if you used .once()).
   assistant.once('ready', (wstream) => { 
     moreAudioData.pipe(wstream)
-  }
+  });
   
   // Handle follow-on conversation end.
   assistant.once('end', () => {
