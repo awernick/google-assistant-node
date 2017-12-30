@@ -1,6 +1,6 @@
 {
   "name": "google-assistant-node",
-  "version": "0.0.15",
+  "version": "0.1.0",
   "description": "Google Assistant SDK wrapper for Node",
   "main": "./lib/google-assistant.js",
   "types": "./lib/google-assistant.d.ts",
