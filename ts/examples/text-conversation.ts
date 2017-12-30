@@ -1,8 +1,3 @@
-/**
- * Record audio using the internal microphone,
- * send it to the Google Assistant and listen to the response
- * through the speakers.
- */
 
 import GoogleAssistant = require("../lib/google-assistant");
 import * as stream from "stream";
@@ -13,38 +8,28 @@ const encoding = constants.Encoding;
 const google = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
-const Speaker = require('speaker');
-const Microphone = require('mic');
+//const Speaker = require('speaker');
 
 // Setup the speaker for PCM data
+/*
 let speaker = new Speaker({
   channels: 1,
   bitDepth: 16,
   sampleRate: 16000
 })
-
-// Setup an interface to the mic to record PCM data
-let mic = new Microphone({
-  rate: '16000',
-  channels: '1',
-  debug: true,
-})
+*/
 
 // Start the Assistant to process 16Hz PCM data from the mic,
 // and send the data correctly to the speaker.
 let assistant = new GoogleAssistant({
-  input: {
-    encoding: encoding.LINEAR16,
-    sampleRateHertz: 16000
-  },
   output: {
     encoding: encoding.LINEAR16,
     sampleRateHertz: 16000,
     volumePercentage: 100
   },
   device: {
-    deviceId: 'pcm-audio',
-    deviceModelId: 'pcm-audio-node',
+    deviceId: 'ga-desktop',
+    deviceModelId: 'ga-desktop-electron',
   },
   languageCode: 'en-US',
 })
@@ -53,45 +38,40 @@ let assistant = new GoogleAssistant({
 // data from the mic.
 assistant.on('ready', (conversationStream: stream.Writable) => {
   console.log("Ready");
-  mic.getAudioStream().pipe(conversationStream)
 })
 
 // Transcription of the audio recorded by the mic
 assistant.on('request-text', (text: string) => {
-  console.log("Request Text: ", text)
+  console.log("Request Text: ", text);
 })
 
 
 // Transcription of the Assistant's response.
 // Google sometimes does not send this text, so don't rely
 // to heavily on it.
-assistant.on('response-text', (text: string) => {
-  console.log("Response Text: ", text)
+assistant.on('speech-results', (results: any) => {
+  console.log("Response Text: ", results);
 })
 
 // This is the Assistant's audio response. Send it to the speakers.
 assistant.on('audio-data', (data: Array<Number>) => {
-  speaker.write(data)
+  //speaker.write(data)
 })
 
 // There was an error somewhere. Stop the mic and speaker streams.
 assistant.on('error', (err: Error) => {
   console.error(err);
   console.log("Error ocurred. Exiting...");
-  speaker.end();
-  mic.stop();
+  //speaker.end();
 })
 
 // The conversation is over. Close the microphone and the speakers.
 assistant.once('end', () => {
-  speaker.end();
-  mic.stop();
+  console.log('ended.');
 })
 
 assistant.once('unauthorized', () => {
   console.log("Not authorized. Exiting...");
-  speaker.end();
-  mic.stop();
 })
 
 // Authentication is a bit complicated since Google requires developers
@@ -99,9 +79,8 @@ assistant.once('unauthorized', () => {
 // You also need to enable the Google Assistant API in your GCP project
 // in order to use the SDK.
 var authClient = new OAuth2(
-  'YOUR_CLIENT_ID' || process.env.CLIENT_ID,
-  'YOUR_CLIENT_SECRET' || process.env.CLIENT_SECRET,
-  'YOUR (OPTIONAL) REDIRECT_URL' || process.env.REDIRECT_URL
+  '1008767088687-rjpej2ecgpl7ktvtnlmnpkl9hgl4odch.apps.googleusercontent.com' || process.env.CLIENT_ID,
+  'Ryn_0H-etWquCeSIJj8y9koX' || process.env.CLIENT_SECRET,
 );
 
 // Retrieve tokens via token exchange explained here:
@@ -111,17 +90,24 @@ var authClient = new OAuth2(
 // Please read the following for more information:
 // https://developers.google.com/identity/protocols/OAuth2
 authClient.setCredentials({
-  access_token: 'ACCESS TOKEN HERE',
-  refresh_token: 'REFRESH TOKEN HERE'
-  // Optional, provide an expiry_date (milliseconds since the Unix Epoch)
-  // expiry_date: (new Date()).getTime() + (1000 * 60 * 60 * 24 * 7)
+  access_token: 'ya29.GlsyBS2ywk7-zhFdHn1Rrc0d2FcPnn8oWVNjgE24-ve7zkJgCSrOOy6Djs5CYVbX2nOL9DoeB-3Pg1hr_RNDM5-pz2HMBSX9Wj43agMoJSS9z6wewwK_iDHqy19k',
+  refresh_token: '1/hf2ljFUQGDQXG2AczXIuWOn0mRCZBPx6FB7AMJ5smAA'
 });
 
+const readline = require('readline');
 
-// Authenticate the Asssistant using a Google OAuth2Client
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+let textQuery;
+
 assistant.authenticate(authClient);
 
-// Start the conversation with the Google Assistant.
-// Remember that you should start piping data once the `ready` event has 
-// been fired.
-assistant.assist();
+rl.question('What would you like to say to Google Assistant?', (input: any) => {
+  console.log(`${input}`);
+  rl.close();
+  assistant.assist(input);
+});
+
