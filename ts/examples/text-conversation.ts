@@ -1,26 +1,15 @@
 
+require('dotenv').load(); /** Loading .env file where you can store your API keys for the app */
+
 import GoogleAssistant = require("../lib/google-assistant");
-import * as stream from "stream";
 
 const constants = GoogleAssistant.Constants;
 const encoding = constants.Encoding;
 
 const google = require('googleapis');
+const opn = require('opn');
 const OAuth2 = google.auth.OAuth2;
 
-//const Speaker = require('speaker');
-
-// Setup the speaker for PCM data
-/*
-let speaker = new Speaker({
-  channels: 1,
-  bitDepth: 16,
-  sampleRate: 16000
-})
-*/
-
-// Start the Assistant to process 16Hz PCM data from the mic,
-// and send the data correctly to the speaker.
 let assistant = new GoogleAssistant({
   output: {
     encoding: encoding.LINEAR16,
@@ -32,42 +21,41 @@ let assistant = new GoogleAssistant({
     deviceModelId: 'ga-desktop-electron',
   },
   languageCode: 'en-US',
-})
+});
+
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 // The Assistant is connected to Google and is ready to receive audio
 // data from the mic.
-assistant.on('ready', (conversationStream: stream.Writable) => {
-  console.log("Ready");
+assistant.on('ready', () => {
+  // We're not using this for the text conversation.
 })
-
-// Transcription of the audio recorded by the mic
-assistant.on('request-text', (text: string) => {
-  console.log("Request Text: ", text);
-})
-
 
 // Transcription of the Assistant's response.
 // Google sometimes does not send this text, so don't rely
 // to heavily on it.
-assistant.on('speech-results', (results: any) => {
-  console.log("Response Text: ", results);
+assistant.on('response-text', (text: any) => {
+  console.log('Google Assistant:', text);
 })
 
-// This is the Assistant's audio response. Send it to the speakers.
-assistant.on('audio-data', (data: Array<Number>) => {
-  //speaker.write(data)
+assistant.on('follow-on', (object: any) => {
+  startConversation();
 })
 
 // There was an error somewhere. Stop the mic and speaker streams.
 assistant.on('error', (err: Error) => {
   console.error(err);
   console.log("Error ocurred. Exiting...");
-  //speaker.end();
 })
 
 // The conversation is over. Close the microphone and the speakers.
-assistant.once('end', () => {
-  console.log('ended.');
+assistant.on('end', () => {
+  startConversation();
 })
 
 assistant.once('unauthorized', () => {
@@ -78,36 +66,74 @@ assistant.once('unauthorized', () => {
 // to create a Google Cloud Platform project to use the Google Assistant.
 // You also need to enable the Google Assistant API in your GCP project
 // in order to use the SDK.
+// Defaulting the redirect URL to display the code so we can input it in the console.
 var authClient = new OAuth2(
-  '1008767088687-rjpej2ecgpl7ktvtnlmnpkl9hgl4odch.apps.googleusercontent.com' || process.env.CLIENT_ID,
-  'Ryn_0H-etWquCeSIJj8y9koX' || process.env.CLIENT_SECRET,
+  process.env.CLIENT_ID     || 'YOUR_CLIENT_ID',
+  process.env.CLIENT_SECRET || 'YOUR_CLIENT_SECRET',
+  process.env.REDIRECT_URL  || 'urn:ietf:wg:oauth:2.0:oob' // Default to output code oob in window
 );
 
-// Retrieve tokens via token exchange explained here:
-// https://github.com/google/google-api-nodejs-client
-//
-// There are also many other methods to obtain an access token from Google.
-// Please read the following for more information:
-// https://developers.google.com/identity/protocols/OAuth2
-authClient.setCredentials({
-  access_token: 'ya29.GlsyBS2ywk7-zhFdHn1Rrc0d2FcPnn8oWVNjgE24-ve7zkJgCSrOOy6Djs5CYVbX2nOL9DoeB-3Pg1hr_RNDM5-pz2HMBSX9Wj43agMoJSS9z6wewwK_iDHqy19k',
-  refresh_token: '1/hf2ljFUQGDQXG2AczXIuWOn0mRCZBPx6FB7AMJ5smAA'
+
+/** Saving profile name for nice chatty output */
+var url = authClient.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+
+  // If you only need one scope you can pass it as a string
+  scope: ['https://www.googleapis.com/auth/assistant-sdk-prototype',
+  'https://www.googleapis.com/auth/userinfo.profile'],
 });
 
-const readline = require('readline');
+console.log('Login and get your refresh token.');
+console.log(url)
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
+try {
+opn(url);
+} catch (error) {
+ //trying to open url, if not possible, use url mentioned in console.
+}
+
+let userName: any;
+
+/** Asking for auth code form authentication URL */
+rl.question('Auth code: ', function(code: any) {
+  /** Getting tokens from Google to authenticate */
+  authClient.getToken(code, function (err: any, tokens: any) {
+    if (!err) {
+      authClient.setCredentials(tokens);
+      console.log('Authentication succesful!');
+
+      /** Authenticating the Google Assistant */
+      assistant.authenticate(authClient);
+
+      /** Getting the user profile information  */
+      var oauth2 = google.oauth2({
+        auth: authClient,
+        version: 'v2'
+      });
+
+      oauth2.userinfo.v2.me.get(function (err: any, result: any) {
+        /** Saving profile name for nice chatty output */
+        userName = result.given_name;
+        startConversation();
+      });
+    } else {
+      console.log('Error happend, exiting....');
+    }
+  });
 });
 
-let textQuery;
+/** Starting a conversation, getting console input and sending it to google. */
+function startConversation() {
+  let textQuery;
 
-assistant.authenticate(authClient);
-
-rl.question('What would you like to say to Google Assistant?', (input: any) => {
-  console.log(`${input}`);
-  rl.close();
-  assistant.assist(input);
+  rl.question(userName + ': ', (input: any) => {
+  if(input) {
+    assistant.assist(input);
+  } else {
+    console.log('Whooppss, seems like you didn\'t say anything.');
+  }
 });
+}
+
 

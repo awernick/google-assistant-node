@@ -22,6 +22,7 @@ class GoogleAssistant extends events.EventEmitter {
   private assistConfig: AssistConfig
   private conversationState: Array<number> | null
   private textQuery: string | null
+  private languageCode: string
 
   private audioInConfig: AudioInConfig;
   private audioOutConfig: AudioOutConfig;
@@ -55,6 +56,7 @@ class GoogleAssistant extends events.EventEmitter {
   }
 
   public setLanguageCode(languageCode: string) {
+    this.languageCode = languageCode;
     this.dialogStateIn.setLanguageCode(languageCode);
   }
 
@@ -118,8 +120,6 @@ class GoogleAssistant extends events.EventEmitter {
     this.channel.on('end', this._handleConversationEnd.bind(this));
 
     // Write first AssistRequest
-    console.log('Request:');
-    console.log(request);
     this.channel.write(request)
     this.state = State.IN_PROGRESS;
 
@@ -200,6 +200,7 @@ class GoogleAssistant extends events.EventEmitter {
     // Handle continous conversations
     if(state.getConversationState()) {
       let diaState = new messages.DialogStateIn(this.dialogStateIn);
+      diaState.setLanguageCode(this.languageCode);
       diaState.setConversationState(state.getConversationState());
       this.dialogStateIn = diaState;
     }
