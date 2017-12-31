@@ -1,5 +1,5 @@
 import * as stream from "stream";
-let messages = require('./googleapis/google/assistant/embedded/v1alpha1/embedded_assistant_pb');
+let messages = require('./googleapis/google/assistant/embedded/v1alpha2/embedded_assistant_pb');
 
 class AudioConverter extends stream.Transform {
   constructor() {
@@ -14,7 +14,7 @@ class AudioConverter extends stream.Transform {
     for(var i = 0; i < chunk.length / size; i++) {
       var nibble = buff.slice(offset, (offset + size));
       offset += size;
-      var request = new messages.ConverseRequest(); 
+      var request = new messages.AssistRequest(); 
       request.setAudioIn(nibble);
       this.push(request);
     }

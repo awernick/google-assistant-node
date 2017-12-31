@@ -1,38 +1,27 @@
+
 require('dotenv').load(); /** Loading .env file where you can store your API keys for the app */
 
-/**
- * Record audio using the internal microphone,
- * send it to the Google Assistant and listen to the response
- * through the speakers.
- */
-
 import GoogleAssistant = require("../lib/google-assistant");
-import * as stream from "stream";
 
 const constants = GoogleAssistant.Constants;
 const encoding = constants.Encoding;
 
 const google = require('googleapis');
+const opn = require('opn');
 const OAuth2 = google.auth.OAuth2;
 
-const Speaker = require('speaker');
-const Microphone = require('mic');
-
-const opn = require('opn');
-
-// Setup the speaker for PCM data
-let speaker = new Speaker({
-  channels: 1,
-  bitDepth: 16,
-  sampleRate: 16000
-})
-
-// Setup an interface to the mic to record PCM data
-let mic = new Microphone({
-  rate: '16000',
-  channels: '1',
-  debug: true,
-})
+let assistant = new GoogleAssistant({
+  output: {
+    encoding: encoding.LINEAR16,
+    sampleRateHertz: 16000,
+    volumePercentage: 100
+  },
+  device: {
+    deviceId: 'ga-desktop',
+    deviceModelId: 'ga-desktop-electron',
+  },
+  languageCode: 'en-US',
+});
 
 const readline = require('readline');
 
@@ -41,56 +30,27 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-// Start the Assistant to process 16Hz PCM data from the mic,
-// and send the data correctly to the speaker.
-let assistant = new GoogleAssistant({
-  input: {
-    encoding: encoding.LINEAR16,
-    sampleRateHertz: 16000
-  },
-  output: {
-    encoding: encoding.LINEAR16,
-    sampleRateHertz: 16000,
-    volumePercentage: 100
-  },
-  device: {
-    deviceId: 'pcm-audio',
-    deviceModelId: 'pcm-audio-node',
-  },
-  languageCode: 'en-US',
-})
-
 // The Assistant is connected to Google and is ready to receive audio
 // data from the mic.
-assistant.on('ready', (conversationStream: stream.Writable) => {
-  console.log("Ready");
-  mic.getAudioStream().pipe(conversationStream)
+assistant.on('ready', () => {
+  // We're not using this for the text conversation.
 })
-
-// Transcription of the audio recorded by the mic
-assistant.on('speech-results', (results: any) => {
-  console.log("Speech results: ", results);
-});
-
 
 // Transcription of the Assistant's response.
 // Google sometimes does not send this text, so don't rely
 // to heavily on it.
-assistant.on('response-text', (text: string) => {
-  console.log("Response Text: ", text)
+assistant.on('response-text', (text: any) => {
+  console.log('Google Assistant:', text);
 })
 
-// This is the Assistant's audio response. Send it to the speakers.
-assistant.on('audio-data', (data: Array<Number>) => {
-  speaker.write(data)
+assistant.on('follow-on', (object: any) => {
+  startConversation();
 })
 
 // There was an error somewhere. Stop the mic and speaker streams.
 assistant.on('error', (err: Error) => {
   console.error(err);
   console.log("Error ocurred. Exiting...");
-  speaker.end();
-  mic.stop();
 })
 
 // The conversation is over. Close the microphone and the speakers.
@@ -100,8 +60,6 @@ assistant.on('end', () => {
 
 assistant.once('unauthorized', () => {
   console.log("Not authorized. Exiting...");
-  speaker.end();
-  mic.stop();
 })
 
 // Authentication is a bit complicated since Google requires developers
@@ -147,21 +105,35 @@ rl.question('Auth code: ', function(code: any) {
 
       /** Authenticating the Google Assistant */
       assistant.authenticate(authClient);
-      
-      startConversation();
+
+      /** Getting the user profile information  */
+      var oauth2 = google.oauth2({
+        auth: authClient,
+        version: 'v2'
+      });
+
+      oauth2.userinfo.v2.me.get(function (err: any, result: any) {
+        /** Saving profile name for nice chatty output */
+        userName = result.given_name;
+        startConversation();
+      });
     } else {
       console.log('Error happend, exiting....');
     }
   });
 });
 
-
-// Authenticate the Asssistant using a Google OAuth2Client
-assistant.authenticate(authClient);
-
+/** Starting a conversation, getting console input and sending it to google. */
 function startConversation() {
-  console.log('Press any key to say something to Google, wait for your signal.');
-  process.stdin.resume();
-  process.stdin.on('data', () => { assistant.assist() });
+  let textQuery;
+
+  rl.question(userName + ': ', (input: any) => {
+  if(input) {
+    assistant.assist(input);
+  } else {
+    console.log('Whooppss, seems like you didn\'t say anything.');
+  }
+});
 }
+
 
