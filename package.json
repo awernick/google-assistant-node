@@ -9,7 +9,7 @@
     "build": "npm run copy-googleapis && tsc",
     "build:test": "gulp",
     "build:live": "gulp watch",
-    "test": "npm run build:test && mocha build/test",
+    "build-windows": "rd /s /q lib && rd /s /q lib",
     "copy-googleapis": "mkdir -p lib && cp -r googleapis lib/",
     "prepublish": "npm run build"
   },
@@ -24,8 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "dotenv": "^4.0.0",
-    "google-protobuf": "^3.3.0",
-    "grpc": "^1.8.0",
+    "google-protobuf": "^3.5.0",
     "opn": "^5.1.0"
   },
   "devDependencies": {
@@ -39,7 +38,6 @@
     "gulp-typescript": "^3.1.7",
     "mic": "^2.1.2",
     "mocha": "^3.4.2",
-    "speaker": "^0.4.0",
     "typescript": "^2.3.4"
   },
   "repository": {

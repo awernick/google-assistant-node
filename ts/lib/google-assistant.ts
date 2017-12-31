@@ -93,7 +93,6 @@ class GoogleAssistant extends events.EventEmitter {
   } 
 
   public assist(textQuery?: string) {
-    // [TODO]: Add support for text-input requests
     if(this.state == State.IN_PROGRESS && this.dialogStateIn.conversationState != null) {
       this.assistConfig.setDialogStateIn(this.dialogStateIn);
       this.dialogStateIn.conversationState = null;
@@ -143,7 +142,7 @@ class GoogleAssistant extends events.EventEmitter {
   }
 
   private _handleAssistResponse(response: any) {
-    if(response.getEventType() == Event.END_OF_UTTERANCE) {
+    if(response.getEventType() === Event.END_OF_UTTERANCE) {
       this.emit('end-of-utterance');
     }
 
@@ -161,12 +160,10 @@ class GoogleAssistant extends events.EventEmitter {
       );
     }
 
-    // [TODO]: Add support for device actions.
-    /*
-    if(response.hasError()) { 
-      this.emit('error', response.getError());
+    if(response.hasDeviceAction()) {
+      this.emit('device-request', 
+      JSON.parse(response.getDeviceAction().toObject().deviceRequestJson));
     }
-    */
   }
 
   private _handleDialogStateOut(state: any) {

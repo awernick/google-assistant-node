@@ -1,3 +1,5 @@
+require('dotenv').load(); /** Loading .env file where you can store your API keys for the app */
+
 /**
  * Record audio using the internal microphone,
  * send it to the Google Assistant and listen to the response
@@ -16,6 +18,8 @@ const OAuth2 = google.auth.OAuth2;
 const Speaker = require('speaker');
 const Microphone = require('mic');
 
+const opn = require('opn');
+
 // Setup the speaker for PCM data
 let speaker = new Speaker({
   channels: 1,
@@ -29,6 +33,13 @@ let mic = new Microphone({
   channels: '1',
   debug: true,
 })
+
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 // Start the Assistant to process 16Hz PCM data from the mic,
 // and send the data correctly to the speaker.
@@ -57,9 +68,9 @@ assistant.on('ready', (conversationStream: stream.Writable) => {
 })
 
 // Transcription of the audio recorded by the mic
-assistant.on('request-text', (text: string) => {
-  console.log("Request Text: ", text)
-})
+assistant.on('speech-results', (results: any) => {
+  console.log("Speech results: ", results);
+});
 
 
 // Transcription of the Assistant's response.
@@ -83,9 +94,8 @@ assistant.on('error', (err: Error) => {
 })
 
 // The conversation is over. Close the microphone and the speakers.
-assistant.once('end', () => {
-  speaker.end();
-  mic.stop();
+assistant.on('end', () => {
+  startConversation();
 })
 
 assistant.once('unauthorized', () => {
@@ -98,30 +108,60 @@ assistant.once('unauthorized', () => {
 // to create a Google Cloud Platform project to use the Google Assistant.
 // You also need to enable the Google Assistant API in your GCP project
 // in order to use the SDK.
+// Defaulting the redirect URL to display the code so we can input it in the console.
 var authClient = new OAuth2(
-  'YOUR_CLIENT_ID' || process.env.CLIENT_ID,
-  'YOUR_CLIENT_SECRET' || process.env.CLIENT_SECRET,
-  'YOUR (OPTIONAL) REDIRECT_URL' || process.env.REDIRECT_URL
+  process.env.CLIENT_ID     || 'YOUR_CLIENT_ID',
+  process.env.CLIENT_SECRET || 'YOUR_CLIENT_SECRET',
+  process.env.REDIRECT_URL  || 'urn:ietf:wg:oauth:2.0:oob' // Default to output code oob in window
 );
 
-// Retrieve tokens via token exchange explained here:
-// https://github.com/google/google-api-nodejs-client
-//
-// There are also many other methods to obtain an access token from Google.
-// Please read the following for more information:
-// https://developers.google.com/identity/protocols/OAuth2
-authClient.setCredentials({
-  access_token: 'ACCESS TOKEN HERE',
-  refresh_token: 'REFRESH TOKEN HERE'
-  // Optional, provide an expiry_date (milliseconds since the Unix Epoch)
-  // expiry_date: (new Date()).getTime() + (1000 * 60 * 60 * 24 * 7)
+
+/** Saving profile name for nice chatty output */
+var url = authClient.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+
+  // If you only need one scope you can pass it as a string
+  scope: ['https://www.googleapis.com/auth/assistant-sdk-prototype',
+  'https://www.googleapis.com/auth/userinfo.profile'],
+});
+
+console.log('Login and get your refresh token.');
+console.log(url)
+
+try {
+opn(url);
+} catch (error) {
+ //trying to open url, if not possible, use url mentioned in console.
+}
+
+let userName: any;
+
+/** Asking for auth code form authentication URL */
+rl.question('Auth code: ', function(code: any) {
+  /** Getting tokens from Google to authenticate */
+  authClient.getToken(code, function (err: any, tokens: any) {
+    if (!err) {
+      authClient.setCredentials(tokens);
+      console.log('Authentication succesful!');
+
+      /** Authenticating the Google Assistant */
+      assistant.authenticate(authClient);
+      
+      startConversation();
+    } else {
+      console.log('Error happend, exiting....');
+    }
+  });
 });
 
 
 // Authenticate the Asssistant using a Google OAuth2Client
 assistant.authenticate(authClient);
 
-// Start the conversation with the Google Assistant.
-// Remember that you should start piping data once the `ready` event has 
-// been fired.
-assistant.assist();
+function startConversation() {
+  console.log('Press any key to say something to Google, wait for your signal.');
+  process.stdin.resume();
+  process.stdin.on('data', () => { assistant.assist() });
+}
+
