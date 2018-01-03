@@ -3,14 +3,14 @@ import * as stream from "stream";
 import * as constants from "./constants";
 import  AudioConverter from "./audio-converter";
 import { State, Event, API, MicMode } from "./constants";
-import { AudioInOptions , AudioOutOptions }  from "./options";
+import { AudioInOptions , AudioOutOptions, DeviceOptions }  from "./options";
 import { 
-  ConverseConfig, AudioInConfig, AudioOutConfig, AssistantConfig 
+  AssistConfig, AudioInConfig, AudioOutConfig, AssistantConfig, DialogStateIn, DeviceConfig
 } from "./config";
 
 let grpc = require('grpc');
-let messages = require('./googleapis/google/assistant/embedded/v1alpha1/embedded_assistant_pb');
-let services = require('./googleapis/google/assistant/embedded/v1alpha1/embedded_assistant_grpc_pb');
+let messages = require('./googleapis/google/assistant/embedded/v1alpha2/embedded_assistant_pb');
+let services = require('./googleapis/google/assistant/embedded/v1alpha2/embedded_assistant_grpc_pb');
 
 class GoogleAssistant extends events.EventEmitter {
   static Constants = constants;
@@ -18,39 +18,65 @@ class GoogleAssistant extends events.EventEmitter {
   private state: State
   private service: any   // gRPC Service
   private channel: any   // gRPC Duplex Channel
-  private converter: AudioConverter;
-  private converseConfig: ConverseConfig
+  private converter: AudioConverter
+  private assistConfig: AssistConfig
   private conversationState: Array<number> | null
+  private textQuery: string | null
+  private languageCode: string
 
   private audioInConfig: AudioInConfig;
   private audioOutConfig: AudioOutConfig;
+  private dialogStateIn: DialogStateIn;
+  private deviceConfig: DeviceConfig;
 
   constructor(config: AssistantConfig) {
     super();
     this.converter = new AudioConverter();
-    this.converseConfig = new messages.ConverseConfig();
+    this.assistConfig = new messages.AssistConfig();
     this.audioInConfig = new messages.AudioInConfig();
     this.audioOutConfig = new messages.AudioOutConfig();
+    this.dialogStateIn = new messages.DialogStateIn();
+    this.deviceConfig = new messages.DeviceConfig();
     this.setInputConfig(config.input);
     this.setOutputConfig(config.output);
+    this.setLanguageCode(config.languageCode);
+    this.setDeviceConfig(config.device);
   }
 
-  public setInputConfig(config: AudioInOptions) {
-    this.audioInConfig.setEncoding(config.encoding);
-    this.audioInConfig.setSampleRateHertz(config.sampleRateHertz);
-    this._updateConverseConfig();
+  public setDeviceConfig(config: DeviceOptions) {
+    this.deviceConfig.setDeviceId(config.deviceId);
+    this.deviceConfig.setDeviceModelId(config.deviceModelId);
+  }
+
+  public setInputConfig(config?: AudioInOptions) {
+    if(config) {
+      this.audioInConfig.setEncoding(config.encoding);
+      this.audioInConfig.setSampleRateHertz(config.sampleRateHertz);
+    }
+  }
+
+  public setLanguageCode(languageCode: string) {
+    this.languageCode = languageCode;
+    this.dialogStateIn.setLanguageCode(languageCode);
   }
 
   public setOutputConfig(config: AudioOutOptions) {
     this.audioOutConfig.setEncoding(config.encoding);
     this.audioOutConfig.setSampleRateHertz(config.sampleRateHertz);
     this.audioOutConfig.setVolumePercentage(config.volumePercentage);
-    this._updateConverseConfig();
   }
 
-  private _updateConverseConfig() {
-    this.converseConfig.setAudioInConfig(this.audioInConfig);
-    this.converseConfig.setAudioOutConfig(this.audioOutConfig);
+  private _updateAssistConfig() {
+    if(this.textQuery) {
+      this.assistConfig.setTextQuery(this.textQuery);
+      this.assistConfig.clearAudioInConfig();
+    } else {
+      this.assistConfig.setAudioInConfig(this.audioInConfig);
+      this.assistConfig.clearTextQuery();
+    }
+    this.assistConfig.setAudioOutConfig(this.audioOutConfig);
+    this.assistConfig.setDialogStateIn(this.dialogStateIn);
+    this.assistConfig.setDeviceConfig(this.deviceConfig);
   }
   
   public authenticate(authClient: any) {
@@ -66,14 +92,16 @@ class GoogleAssistant extends events.EventEmitter {
     ); 
   } 
 
-  public converse() { 
-    if(this.state == State.IN_PROGRESS && this.conversationState != null) {
-      this.converseConfig.setConverseState(this.conversationState);
-      this.conversationState = null; 
-    } 
+  public assist(textQuery?: string) {
+    if(this.state == State.IN_PROGRESS && this.dialogStateIn.conversationState != null) {
+      this.assistConfig.setDialogStateIn(this.dialogStateIn);
+      this.dialogStateIn.conversationState = null;
+    }
 
-    let request = new messages.ConverseRequest(); 
-    request.setConfig(this.converseConfig); 
+    this.textQuery = textQuery;
+    this._updateAssistConfig();
+    let request = new messages.AssistRequest();
+    request.setConfig(this.assistConfig); 
 
     // GUARD: Make sure service is created and authenticated
     if(this.service == null) {
@@ -81,102 +109,111 @@ class GoogleAssistant extends events.EventEmitter {
       return;
     }
 
-    this.channel = this.service.converse(
+    this.channel = this.service.assist(
       new grpc.Metadata(), request
     );
 
     // Setup event listeners
-    this.channel.on('data', this._handleResponse.bind(this));
-    this.channel.on('data', this._handleConversationState.bind(this));
+    this.channel.on('data', this._handleAudioOut.bind(this));
+    this.channel.on('data', this._handleAssistResponse.bind(this));
+    this.channel.on('data', this._handleEndOfUtterance.bind(this));
+    this.channel.on('data', this._handleSpeechResults.bind(this));
     this.channel.on('error', this._handleError.bind(this));
     this.channel.on('end', this._handleConversationEnd.bind(this));
 
-    // Write first ConverseRequest
+    // Write first AssistRequest
     this.channel.write(request)
     this.state = State.IN_PROGRESS;
 
     // Wait for any errors to emerge before piping
     // audio data
-    setTimeout(() => {
-      if(this.channel != null) {
-        // Setup conversion stream
-        this.converter
-          .pipe(this.channel)
-          .on('error', this._handleError.bind(this));
-
-        // Signal that assistant is ready
-        this.emit('ready', this.converter);
-      }
-    }, 100);
-  }
-
-  private _handleResult(result: any) {
-    if(result.getMicrophoneMode()) {
-      this.emit('mic-mode', result.getMicrophoneMode());
-    } 
-
-    if(result.getConversationState()) {
-      this.emit('state', 
-        new Buffer(result.getConversationState())
-      );
-    }
-
-    if(result.getSpokenResponseText()) {
-      this.emit('response-text', result.getSpokenResponseText());
-    }
-
-    if(result.getSpokenRequestText()) {
-      this.emit('request-text', result.getSpokenRequestText());
+    if(!this.textQuery) {
+      setTimeout(() => {
+        if(this.channel != null) {
+          // Signal that assistant is ready for audio input
+          this.emit('ready');
+        }
+      }, 100);
+    } else {
+      this.emit('ready', this.textQuery);
     }
   }
 
-  private _handleResponse(response: any) {
-    if(response.hasEventType() && 
-      response.getEventType() == Event.END_OF_UTTERANCE) {
+  // Write audio buffer to channel
+  public writeAudio(data: any) {
+    if(this.channel) {
+      var request = new messages.AssistRequest(); 
+      request.setAudioIn(data);
+      this.channel.write(request);
+    }
+  }
+
+  private _handleEndOfUtterance(response: any) {
+    if(response.getEventType() === Event.END_OF_UTTERANCE) {
       this.emit('end-of-utterance');
     }
+  }
 
-    else if(response.hasAudioOut()) {
+  private _handleAssistResponse(response: any) {
+    if(response.hasDialogStateOut()) {
+      this._handleDialogStateOut(response.getDialogStateOut());
+    }
+
+    if(response.hasDeviceAction()) {
+      this.emit('device-request', 
+      JSON.parse(response.getDeviceAction().toObject().deviceRequestJson));
+    }
+  }
+
+  private _handleAudioOut(response: any) {
+    if(response.hasAudioOut()) {
       this.emit('audio-data', 
         new Buffer(response.getAudioOut().getAudioData())
       );
     }
+  }
 
-    else if(response.hasResult()) {
-      this._handleResult(response.getResult());
-    }
-
-    else if(response.hasError()) { 
-      this.emit('error', response.getError());
+  private _handleSpeechResults(response: any) {
+    const speechResultsList = response.toObject().speechResultsList;
+    if(speechResultsList) {
+      this.emit('speech-results', speechResultsList);
     }
   }
 
-  private _handleConversationState(response: any) {
-    // Process state-specific results
-    if(response.hasResult()) {
-      let result = response.getResult(); 
+  private _handleDialogStateOut(state: any) {
+    if(state.getSupplementalDisplayText()) {
+      this.emit('response-text', state.getSupplementalDisplayText());
+    }
 
-      // Determine state based on microphone mode.
-      if(result.getMicrophoneMode()) {
-        let micMode = result.getMicrophoneMode();
+    if(state.getConversationState()) {
+      this.emit('state', 
+        new Buffer(state.getConversationState())
+      );
+      this._handleConversationState(state);
+    }
+  }
 
-        // Keep state, and expect more input
-        if(micMode == MicMode.DIALOG_FOLLOW_ON) {
-          this.state = State.IN_PROGRESS;
-        } 
-        
-        // Conversation is over, wait for output to finish streaming
-        else if(micMode == MicMode.CLOSE_MICROPHONE) {
-          this.state = State.FINISHED;
-        }
+  private _handleConversationState(state: any) { 
+    // Determine state based on microphone mode.
+    if(state.getMicrophoneMode()) {
+      this.emit('mic-mode', state.getMicrophoneMode());
+      let micMode = state.getMicrophoneMode();
+      // Keep state, and expect more input
+      if(micMode == MicMode.DIALOG_FOLLOW_ON) {
+        this.state = State.IN_PROGRESS;
       }
 
-      // Handle continous conversations
-      if(result.getConversationState()) {
-        let convState = new messages.ConverseState();
-        convState.setConversationState(result.getConversationState());
-        this.conversationState = convState;
+      // Conversation is over, wait for output to finish streaming
+      else if(micMode == MicMode.CLOSE_MICROPHONE) {
+        this.state = State.FINISHED;
       }
+    }
+    // Handle continous conversations
+    if(state.getConversationState()) {
+      let diaState = new messages.DialogStateIn(this.dialogStateIn);
+      diaState.setLanguageCode(this.languageCode);
+      diaState.setConversationState(state.getConversationState());
+      this.dialogStateIn = diaState;
     }
   }
 
