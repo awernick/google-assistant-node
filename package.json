@@ -12,7 +12,7 @@
     "test": "npm run build:test && mocha build/test",
     "copy-googleapis": "mkdirp lib && cpx googleapis lib/",
     "prepublish": "npm run build",
-    "postinstall": "npm run build"
+    "postinstall": "npm install && npm run build"
   },
   "keywords": [
     "google-assistant",
