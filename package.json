@@ -10,7 +10,7 @@
     "build:test": "gulp",
     "build:live": "gulp watch",
     "test": "npm run build:test && mocha build/test",
-    "copy-googleapis": "mkdirp build && ncp googleapis build/",
+    "copy-googleapis": "mkdirp build && ncp googleapis build/lib",
     "prepublish": "npm run build"
   },
   "keywords": [
