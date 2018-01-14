@@ -11,7 +11,8 @@
     "build:live": "gulp watch",
     "test": "npm run build:test && mocha build/test",
     "copy-googleapis": "$(npm bin)/mkdirp lib && $(npm bin)/ncp googleapis lib/",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "install": "npm run build"
   },
   "keywords": [
     "google-assistant",
