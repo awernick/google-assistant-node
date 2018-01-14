@@ -10,7 +10,7 @@
     "build:test": "gulp",
     "build:live": "gulp watch",
     "test": "npm run build:test && mocha build/test",
-    "copy-googleapis": "$(npm bin)/mkdirp lib && $(npm bin)/ncp googleapis lib/",
+    "copy-googleapis": "./node_modules/.bin/mkdirp lib && ./node_modules/.bin/ncp googleapis lib/",
     "prepublish": "npm run build",
     "install": "npm run build"
   },
@@ -25,14 +25,14 @@
   "license": "ISC",
   "dependencies": {
     "google-protobuf": "^3.5.0",
-    "grpc": "^1.8.0"
+    "grpc": "^1.8.0",
+    "ncp": "^2.0.0",
+    "mkdirp": "^0.5.1"
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.29",
-    "mkdirp": "^0.5.1",
-    "ncp": "^2.0.0",
     "rimraf": "^2.6.2",
     "chai": "^4.0.2",
     "googleapis": "^22.2.0",
