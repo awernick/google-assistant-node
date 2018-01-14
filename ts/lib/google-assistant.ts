@@ -148,6 +148,10 @@ class GoogleAssistant extends events.EventEmitter {
     }
   }
 
+  public say(sentence: string) {
+    this.assist('repeat after me '.concat(sentence));
+  }
+
   private _handleEndOfUtterance(response: any) {
     if(response.getEventType() === Event.END_OF_UTTERANCE) {
       this.emit('end-of-utterance');
@@ -234,6 +238,15 @@ class GoogleAssistant extends events.EventEmitter {
       this.emit('unauthorized', error);
     } else {
       this.emit('error', error);
+    }
+  }
+
+  public stop() {
+    if(this.channel != null) {
+      this.channel.removeAllListeners();
+      this.channel.end();
+      this.channel = null;
+      this.emit('end');
     }
   }
 }
