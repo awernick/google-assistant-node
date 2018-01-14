@@ -2,17 +2,16 @@
   "name": "google-assistant-node",
   "version": "0.1.0",
   "description": "Google Assistant SDK wrapper for Node",
-  "main": "./lib/google-assistant.js",
-  "types": "./lib/google-assistant.d.ts",
+  "main": "./build/lib/google-assistant.js",
+  "types": "./build/lib/google-assistant.d.ts",
   "scripts": {
     "clean": "gulp clean",
     "build": "npm run copy-googleapis && tsc",
     "build:test": "gulp",
     "build:live": "gulp watch",
     "test": "npm run build:test && mocha build/test",
-    "copy-googleapis": "mkdirp lib && ncp googleapis lib/",
-    "prepublish": "npm run build",
-    "install": "npm run build"
+    "copy-googleapis": "mkdirp build && ncp googleapis build/",
+    "prepublish": "npm run build"
   },
   "keywords": [
     "google-assistant",
@@ -25,10 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "google-protobuf": "^3.5.0",
-    "grpc": "^1.8.0",
-    "ncp": "^2.0.0",
-    "mkdirp": "^0.5.1",
-    "typescript": "^2.3.4"
+    "grpc": "^1.8.0"
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
@@ -41,7 +37,10 @@
     "gulp-clean": "^0.3.2",
     "gulp-typescript": "^3.1.7",
     "mic": "^2.1.2",
-    "mocha": "^3.4.2"
+    "mocha": "^3.4.2",
+    "ncp": "^2.0.0",
+    "mkdirp": "^0.5.1",
+    "typescript": "^2.3.4"
   },
   "repository": {
     "type": "git",

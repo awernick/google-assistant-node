@@ -4,7 +4,7 @@ let ts = require('gulp-typescript');
 
 // Directories
 let sources = ["ts/**/*"]
-let outputDir = 'lib';
+let outputDir = 'build';
 let tsConfig = 'tsconfig.json';
 let tsProject = ts.createProject(tsConfig);
 
