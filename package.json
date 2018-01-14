@@ -27,7 +27,8 @@
     "google-protobuf": "^3.5.0",
     "grpc": "^1.8.0",
     "ncp": "^2.0.0",
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "typescript": "^2.3.4"
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
@@ -40,8 +41,7 @@
     "gulp-clean": "^0.3.2",
     "gulp-typescript": "^3.1.7",
     "mic": "^2.1.2",
-    "mocha": "^3.4.2",
-    "typescript": "^2.3.4"
+    "mocha": "^3.4.2"
   },
   "repository": {
     "type": "git",
