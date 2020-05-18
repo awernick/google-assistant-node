@@ -1,4 +1,7 @@
 # Google Assistant SDK for Node
+
+**DEPRECATED** Use https://github.com/endoplasmic/google-assistant instead.
+
 This wrapper allows you to use the Google Assistant api in any Node application.
 It handles events, audio buffering, and client connection automatically.
 
