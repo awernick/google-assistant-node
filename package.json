@@ -1,16 +1,16 @@
 {
   "name": "google-assistant-node",
-  "version": "0.0.15",
+  "version": "0.1.0",
   "description": "Google Assistant SDK wrapper for Node",
-  "main": "./lib/google-assistant.js",
-  "types": "./lib/google-assistant.d.ts",
+  "main": "./build/lib/google-assistant.js",
+  "types": "./build/lib/google-assistant.d.ts",
   "scripts": {
     "clean": "gulp clean",
     "build": "npm run copy-googleapis && tsc",
     "build:test": "gulp",
     "build:live": "gulp watch",
     "test": "npm run build:test && mocha build/test",
-    "copy-googleapis": "mkdir -p lib && cp -r googleapis lib/",
+    "copy-googleapis": "mkdirp build/lib/build && ncp googleapis build/lib/googleapis",
     "prepublish": "npm run build"
   },
   "keywords": [
@@ -23,13 +23,14 @@
   "author": "Alan Wernick",
   "license": "ISC",
   "dependencies": {
-    "google-protobuf": "^3.3.0",
-    "grpc": "^1.3.8"
+    "google-protobuf": "^3.5.0",
+    "grpc": "^1.8.0"
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.29",
+    "rimraf": "^2.6.2",
     "chai": "^4.0.2",
     "googleapis": "^22.2.0",
     "gulp": "^3.9.1",
@@ -37,7 +38,8 @@
     "gulp-typescript": "^3.1.7",
     "mic": "^2.1.2",
     "mocha": "^3.4.2",
-    "speaker": "^0.4.0",
+    "ncp": "^2.0.0",
+    "mkdirp": "^0.5.1",
     "typescript": "^2.3.4"
   },
   "repository": {

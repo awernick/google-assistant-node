@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es5",
+    "target": "es2017",
     "noImplicitAny": true,
     "alwaysStrict": true,
-    "outDir": "./",
+    "outDir": "./build",
     "sourceMap": true,
     "declaration": true
   },

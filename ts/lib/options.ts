@@ -6,3 +6,8 @@ export interface AudioInOptions {
 export interface AudioOutOptions extends AudioInOptions {
   volumePercentage: number
 }
+
+export interface DeviceOptions {
+  deviceId: string
+  deviceModelId: string
+}
